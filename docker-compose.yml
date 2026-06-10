@@ -1,0 +1,38 @@
+# SmartDesk — infra locale : n8n (iPaaS) + Postgres (système externe)
+# Démarrer :  docker compose up -d
+# n8n UI   :  http://localhost:5678  → au 1er lancement, crée ton compte
+#             propriétaire (email + mot de passe) sur l'écran de setup.
+services:
+  postgres:
+    image: postgres:16
+    container_name: smartdesk-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: smartdesk
+      POSTGRES_PASSWORD: smartdesk
+      POSTGRES_DB: smartdesk
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: smartdesk-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_SECURE_COOKIE=false
+      - GENERIC_TIMEZONE=Africa/Dakar
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+    volumes:
+      - n8ndata:/home/node/.n8n
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
+  n8ndata:
