@@ -19,7 +19,14 @@ This folder holds the exported n8n workflows (JSON) and their documentation.
 | File | Flow | Status |
 |---|---|---|
 | `smartdesk-core.json` | Manual trigger → sample ticket → Claude triage → Postgres (incident + log) | Day 2A — testable without Jira |
-| `smartdesk-full.json` | Jira trigger → Claude triage → write-back → escalate → two-way sync | Day 2B+ |
+| `smartdesk-full.json` | Schedule (poll) → Jira search → Claude triage → write-back (label + comment) → escalate → Postgres | Day 2B |
+
+## Trigger: polling vs webhook
+Atlassian Cloud cannot deliver webhooks to `localhost`, so the local workflow uses a
+**Schedule Trigger that polls Jira** via JQL (`project = SD AND labels != triaged`) and
+marks each processed ticket with a `triaged` label — **idempotency at the Jira level**.
+In production you would swap this for the **Jira Trigger (webhook)** behind a public URL
+(reverse proxy / tunnel), keeping the rest of the flow identical.
 
 ## AI contract
 The triage step sends a ticket to Claude and expects a strict JSON object:
