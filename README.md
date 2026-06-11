@@ -1,84 +1,82 @@
 # SmartDesk — AI-Powered Service Management Integration
 
-Intégration de démonstration pour les entretiens techniques **Valiantys**.
-Quand un ticket arrive dans **Jira Service Management**, un workflow **n8n** (iPaaS)
-le récupère, le fait **trier par une IA (Claude)**, réécrit le résultat dans Jira,
-**escalade les incidents critiques** vers un système externe (Postgres), et
-**synchronise les statuts dans les deux sens** — le tout avec **gouvernance**
-(logs, idempotence, gestion d'erreurs).
+**English** · [Français](README.fr.md)
 
-> Plan détaillé du projet : `../projet-technique-valiantys.md`
+A demo integration that connects **Jira Service Management** to an AI triage layer and an external system, with governance built in.
 
-## Stack (= les outils de Valiantys)
-| Brique | Outil | Équivalent Valiantys |
+When a ticket is created in **Jira Service Management**, an **n8n** (iPaaS) workflow picks it up, sends it to **Claude** for triage (category, priority, sentiment, summary, suggested reply), writes the result back to Jira, **escalates critical incidents** to an external system (Postgres), and **syncs statuses both ways** — all with **governance** (logging, idempotency, error handling).
+
+> Full project plan: `../projet-technique-valiantys.md`
+
+## Stack
+| Layer | Tool | Industry equivalent |
 |---|---|---|
 | iPaaS | **n8n** (Docker) | Workato / Boomi / Celigo |
-| Système métier | **Jira Service Management** | Atlassian / Jira |
-| Couche IA | **Claude** (structured outputs) | Rovo / Glean |
-| Système externe | **Postgres** | CRM/ERP (Salesforce/NetSuite) |
+| Service desk | **Jira Service Management** | Atlassian / Jira |
+| AI layer | **Claude** (structured outputs) | Rovo / Glean |
+| External system | **Postgres** | CRM/ERP (Salesforce/NetSuite) |
+
+> The iPaaS concepts here — triggers, connectors, data mapping, error handling — map one-to-one to Workato and Boomi. n8n is the open-source way to demonstrate them.
 
 ---
 
-## Jour 1 — Setup (≈ 1h)
+## Day 1 — Setup (~1h)
 
-### 1. Cloner les variables d'environnement
+### 1. Copy the environment file
 ```bash
 cp .env.example .env
-# édite .env et renseigne les clés (voir étapes 2 et 3)
+# edit .env and fill in the keys (see steps 2 and 3)
 ```
 
-### 2. Créer une instance Jira Service Management gratuite
-- Va sur **https://www.atlassian.com/software/jira/service-management** → *Get it free*.
-- Crée un site `https://<ton-site>.atlassian.net` et un projet **Service Management** (clé ex. `SD`).
-- Génère un **API token** : https://id.atlassian.com/manage-profile/security/api-tokens
-- Renseigne dans `.env` : `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`.
-- Crée **5-6 tickets de test** (un bug, un accès bloqué, une question, une panne…).
+### 2. Create a free Jira Service Management instance
+- Go to **https://www.atlassian.com/software/jira/service-management** → *Get it free*.
+- Create a site `https://<your-site>.atlassian.net` and a **Service management** project (key e.g. `SD`).
+- Generate an **API token**: https://id.atlassian.com/manage-profile/security/api-tokens
+- Fill `.env`: `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_PROJECT_KEY`.
+- Create **5–6 test tickets** (a bug, a blocked access, a how-to, an outage…).
 
-### 3. Récupérer une clé API Claude
+### 3. Get a Claude API key
 - https://console.anthropic.com → API keys.
-- Renseigne `ANTHROPIC_API_KEY` dans `.env`.
+- Fill `ANTHROPIC_API_KEY` in `.env`.
 
-### 4. Lancer l'infra (n8n + Postgres)
+### 4. Start the infrastructure (n8n + Postgres)
 ```bash
 docker compose up -d
-docker compose ps          # les 2 services doivent être "running"
+docker compose ps          # both services should be "running"
 ```
-- n8n : **http://localhost:5678** (admin / changeme — change le mot de passe dans le compose).
-- Postgres : `localhost:5432` (smartdesk / smartdesk / smartdesk). Le schéma est créé tout seul.
+- n8n: **http://localhost:5678** → on first launch, create your owner account (email + password).
+- Postgres: `localhost:5432` (smartdesk / smartdesk / smartdesk). The schema is created automatically.
 
-### 5. Tester la couche IA en isolé
+### 5. Test the AI layer in isolation
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r ai/requirements.txt
-export ANTHROPIC_API_KEY=sk-ant-...        # ou: set -a; source .env; set +a
+export ANTHROPIC_API_KEY=sk-ant-...        # or: set -a; source .env; set +a
 python ai/triage.py
 ```
-Tu dois voir un JSON `{category, priority, sentiment, summary, suggested_reply}`.
-Teste aussi avec ton propre ticket :
+You should see a JSON object: `{category, priority, sentiment, summary, suggested_reply}`.
+Test with your own ticket too:
 ```bash
 echo '{"subject":"Billing wrong amount","body":"I was charged twice this month."}' | python ai/triage.py
 ```
 
-✅ **Fin du Jour 1 :** infra qui tourne + triage IA fonctionnel. Les jours suivants
-(voir le plan) : construire le workflow n8n (trigger Jira → IA → write-back →
-escalade Postgres/Slack → sync bidirectionnelle) + gouvernance.
+✅ **End of Day 1:** infrastructure running + AI triage working. Next days (see the plan): build the n8n workflow (Jira trigger → AI → write-back → Postgres/Slack escalation → two-way sync) + governance.
 
 ---
 
-## Connexions à utiliser dans n8n
-- **Jira** : credential "Jira SW Cloud API" → `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`.
-- **Postgres** : host `postgres` (nom du service Docker), port `5432`, db/user/pass `smartdesk`.
-- **IA** : node *HTTP Request* (POST `https://api.anthropic.com/v1/messages`, headers
-  `x-api-key`, `anthropic-version: 2023-06-01`) — réplique la logique de `ai/triage.py`.
+## Connections used in n8n
+- **Jira**: "Jira SW Cloud API" credential → `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`.
+- **Postgres**: host `postgres` (the Docker service name), port `5432`, db/user/pass `smartdesk`.
+- **AI**: an *HTTP Request* node (POST `https://api.anthropic.com/v1/messages`, headers `x-api-key`, `anthropic-version: 2023-06-01`) — replicating the logic of `ai/triage.py`.
 
 ## Structure
 ```
 smartdesk-jsm-integration/
 ├── docker-compose.yml      # n8n + Postgres
-├── .env.example            # secrets à renseigner
+├── .env.example            # secrets to fill in
 ├── db/init.sql             # tables: incidents, integration_logs, processed_events
 ├── ai/
-│   ├── triage.py           # couche IA (Claude structured outputs)
+│   ├── triage.py           # AI layer (Claude structured outputs)
 │   └── requirements.txt
 └── README.md
 ```
