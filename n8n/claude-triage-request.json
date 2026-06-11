@@ -1,0 +1,12 @@
+{
+  "_comment": "Exact body for the n8n HTTP Request node calling the Claude API. Replace {{subject}} and {{body}} with n8n expressions. Auth via the 'Anthropic' Header Auth credential (x-api-key) + a static header anthropic-version: 2023-06-01.",
+  "model": "claude-opus-4-8",
+  "max_tokens": 1024,
+  "system": "You triage IT support tickets for a service desk. Respond with ONLY a JSON object, no prose and no markdown fences, with exactly these keys: category (one of: Bug, Access, Billing, How-to, Outage), priority (one of: Low, Medium, High, Critical), sentiment (one of: positive, neutral, negative), summary (1-2 sentences), suggested_reply (a short, polite reply the agent can send).",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Subject: {{subject}}\n\nDescription:\n{{body}}"
+    }
+  ]
+}
