@@ -1,12 +1,9 @@
-# Secrets — NE JAMAIS committer
 .env
 .env.*
 !.env.example
 
-# Python
 .venv/
 __pycache__/
 *.pyc
 
-# Données / volumes locaux
 *.log
